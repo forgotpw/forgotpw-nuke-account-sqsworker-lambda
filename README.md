@@ -1,6 +1,8 @@
 # Nuke Account SQS Worker Lambda
 
-Process events to completely delete a user's account.  When successful (with a valid confirmation code) requests are submitted from the REST API to nuke an account, an SNS event is fired.  An SQS queue created in this project subscribes to these events and this worker processes these SQS messages.  All traces of password hints and chat transcript logs are permanently deleted.  A final confirmation and goodbye message will be sent ot the user via SMS text message.
+Process events to completely delete a user's account.  When successful requests are submitted from the REST API to nuke an account, an SNS event is fired.  An SQS queue created in this project subscribes to these events and this worker processes these SQS messages.  All traces of password hints and chat transcript logs are permanently deleted.  A final confirmation and goodbye message will be sent ot the user via SMS text message.
+
+The REST API Lambda called from the API Gateway route will require and validate a confirmation code, which was checked before this item was added to this SQS queue.
 
 ## Setup
 
