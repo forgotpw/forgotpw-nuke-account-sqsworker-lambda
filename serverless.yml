@@ -1,0 +1,106 @@
+service: nuke-account-sqsworker
+
+# pin to a specific Serverless version
+frameworkVersion: ">=1.2.0 <2.0.0"
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: nodejs8.10
+  deploymentBucket: forgotpw-deploy-${opt:awsEnv, 'dev'}
+  stage: live
+  logRetentionInDays: 14 # cloudwatch logs
+  iamRoleStatements:
+    -
+      Effect: Allow
+      Action:
+        - sqs:GetQueueUrl
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+      Resource:
+        - 'Fn::Join':
+          - ':'
+          -
+            - 'arn:aws:sqs'
+            - Ref: 'AWS::Region'
+            - Ref: 'AWS::AccountId'
+            - 'fpw-nuke-account-request'
+    -
+      Effect: Allow
+      Action:
+        - s3:DeleteObject
+        - s3:ListBucket
+      Resource: arn:aws:s3:::forgotpw-userdata-*
+
+plugins:
+  - serverless-mocha-plugin
+
+package:
+  exclude:
+    - .git/**
+
+functions:
+  fpw-nuke-account-sqsworker:
+    name: 'fpw-nuke-account-sqsworker'
+    handler: index.handler
+    environment:
+      NUKE_ACCOUNT_SQS_QUEUE_NAME: fpw-nuke-account-request
+      USERDATA_S3_BUCKET: forgotpw-userdata-${opt:awsEnv, 'dev'}
+      TWILIO_ACCOUNT_SID: ${ssm:/fpw/TWILIO_ACCOUNT_SID~true}
+      TWILIO_AUTH_TOKEN: ${ssm:/fpw/TWILIO_AUTH_TOKEN~true}
+      TWILIO_FROM_NUMBER: ${ssm:/fpw/TWILIO_FROM_NUMBER}
+      LOG_LEVEL: 'debug'
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - "NukeAccountSQSQueue"
+              - "Arn"
+          batchSize: 10
+
+resources:
+  Resources:
+    NukeAccountSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties: 
+        QueueName: fpw-nuke-account-request
+        ReceiveMessageWaitTimeSeconds: 20
+        VisibilityTimeout: 30
+        MessageRetentionPeriod: 345600 # seconds (4 days)
+        RedrivePolicy: 
+          deadLetterTargetArn: 
+            Fn::GetAtt: 
+              - "NukeAccountSQSQueueDeadletter"
+              - "Arn"
+          maxReceiveCount: 5
+    NukeAccountSQSQueuePolicy:
+      Type: 'AWS::SQS::QueuePolicy'
+      Properties:
+        PolicyDocument:
+          Version: '2012-10-17'
+          Id: sqspolicy
+          Statement:
+            - Sid: SendMessage-To-Queue-From-SNS-Topic
+              Effect: Allow
+              Principal: "*"
+              Action:
+                - 'sqs:SendMessage'
+              Resource: { "Fn::Join" : [":", ["arn:aws:sqs", { "Ref" : "AWS::Region" }, { "Ref" : "AWS::AccountId" }, "fpw-nuke-account-request" ] ] }
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: { "Fn::Join" : ["", ["arn:aws:sns:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId" }, ":fpw-nuke-account-request" ] ] }
+        Queues:
+          - { "Fn::Join" : ["", ["https://sqs.", { "Ref" : "AWS::Region" }, ".amazonaws.com/", { "Ref" : "AWS::AccountId" }, "/fpw-nuke-account-request" ] ] }
+      DependsOn:
+        - NukeAccountSQSQueue
+    NukeAccountSQSQueueDeadletter:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: fpw-nuke-account-request-deadletter
+    NukeAccountSNSSubscription:
+      DependsOn: NukeAccountSQSQueue
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: { "Fn::Join" : [":", ["arn:aws:sqs", { "Ref" : "AWS::Region" }, { "Ref" : "AWS::AccountId" }, "fpw-nuke-account-request" ] ] }
+        Protocol: SQS
+        TopicArn: { "Fn::Join" : ["", ["arn:aws:sns:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId" }, ":fpw-nuke-account-request" ] ] }
