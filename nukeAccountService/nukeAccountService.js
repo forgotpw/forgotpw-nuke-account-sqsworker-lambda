@@ -36,10 +36,16 @@ class NukeAccountService {
     
     // delete recursively all items in bucket
     logger.info(`Deleting keys for ${normalizedPhone}`)
-    await deleteKeys(
+    let numDeleted = await deleteKeys(
       config.USERDATA_S3_BUCKET,
       keys
     )
+
+    if (numDeleted == 0) {
+      let msg = `Request to nuke account ${normalizedPhone} resulted in deleting zero items`
+      logger.error(msg)
+      throw new Error(msg)
+    }
 
     // send user a confirmation / goodbye text message
     let textMessage = "We've completely deleted all of your data, as per your request. Sorry to see you go."
@@ -50,9 +56,9 @@ class NukeAccountService {
     const result = await twilioPlus.sendTextMessage({
       textMessage: textMessage,
       toPhoneNumber: normalizedPhone,
-      fromPhoneNumber: config.TWILIO_FROM_NUMBER,
-      logS3bucket: config.USERDATA_S3_BUCKET,
-      logS3keyPrefix: `users/${normalizedPhone}/transcript`
+      fromPhoneNumber: config.TWILIO_FROM_NUMBER
+      // NOTE: leave s3 properties out so that a transcript
+      // isn't left for this request
     })
     if (!result.success) {
       logger.error('Error sending text message regarding nuked account')
@@ -100,9 +106,9 @@ async function listKeysFromPrefix(bucket, prefix, marker) {
 }
 
 async function deleteKeys(bucket, keys) {
-
   // not the fastest or most efficient way to delete but it works
   // and this shouldn't be called super often, and is a SQS item anyway
+  let numDeleted = 0
 
   for (let key of keys) {
     const s3 = new AWS.S3();
@@ -114,7 +120,8 @@ async function deleteKeys(bucket, keys) {
   
     try {
       logger.trace(`Deleting item s3://${bucket}/${key}`)
-      await s3.DeleteObject(params).promise()
+      await s3.deleteObject(params).promise()
+      numDeleted++
       logger.info(`Deleted item s3://${bucket}/${key}`)
     }
     catch (err) {
@@ -124,7 +131,7 @@ async function deleteKeys(bucket, keys) {
     }
   
   }
-
+  return numDeleted
 }
 
 module.exports = NukeAccountService
