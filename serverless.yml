@@ -10,6 +10,8 @@ provider:
   deploymentBucket: forgotpw-deploy-${opt:awsEnv, 'dev'}
   stage: live
   logRetentionInDays: 14 # cloudwatch logs
+  timeout: 30 # seconds
+  versionFunctions: true
   iamRoleStatements:
     -
       Effect: Allow
@@ -34,6 +36,13 @@ provider:
 
 plugins:
   - serverless-mocha-plugin
+  - serverless-prune-plugin
+
+custom:
+  # serverless-prune-plugin
+  prune:
+    automatic: true
+    number: 5
 
 package:
   exclude:
