@@ -18,11 +18,11 @@ npm install serverless -g
 ```shell
 # needed to enable proper use of aws profiles with serverless framework
 export AWS_SDK_LOAD_CONFIG=1
+export AWS_ENV="dev" && export PROFILE="fpw$AWS_ENV"
 
 sls \
     deploy \
-    --aws-profile fpwdev \
-    --awsEnv dev \
+    --aws-profile $PROFILE \
     --verbose
 ```
 

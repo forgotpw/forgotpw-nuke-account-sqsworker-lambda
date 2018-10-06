@@ -7,7 +7,7 @@ provider:
   name: aws
   region: us-east-1
   runtime: nodejs8.10
-  deploymentBucket: forgotpw-deploy-${opt:awsEnv, 'dev'}
+  deploymentBucket: forgotpw-deploy-${env:AWS_ENV, 'dev'}
   stage: live
   logRetentionInDays: 14 # cloudwatch logs
   timeout: 30 # seconds
@@ -54,7 +54,7 @@ functions:
     handler: index.handler
     environment:
       NUKE_ACCOUNT_SQS_QUEUE_NAME: fpw-nuke-account-request
-      USERDATA_S3_BUCKET: forgotpw-userdata-${opt:awsEnv, 'dev'}
+      USERDATA_S3_BUCKET: forgotpw-userdata-${env:AWS_ENV, 'dev'}
       TWILIO_ACCOUNT_SID: ${ssm:/fpw/TWILIO_ACCOUNT_SID~true}
       TWILIO_AUTH_TOKEN: ${ssm:/fpw/TWILIO_AUTH_TOKEN~true}
       TWILIO_FROM_NUMBER: ${ssm:/fpw/TWILIO_FROM_NUMBER}
