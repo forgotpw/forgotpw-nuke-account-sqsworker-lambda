@@ -3,7 +3,7 @@
 const AWS = require('aws-sdk')
 const config = require('./config')
 const logger = require('./logger')
-const NukeAccountService = require('./nukeAccountService/nukeAccountService')
+const NukeAccountService = require('./lib/nukeAccountService')
 
 async function handler(event, context, done) {
   // raw console log output easier to copy/paste json from cloudwatch logs
@@ -59,7 +59,7 @@ async function processMessage(messageBody, receiptHandle) {
   const nukeAccountService = new NukeAccountService()
 
   await nukeAccountService.nukeAccount(
-    message.normalizedPhone
+    message.userToken
   )
   await deleteMessage(receiptHandle)
 }

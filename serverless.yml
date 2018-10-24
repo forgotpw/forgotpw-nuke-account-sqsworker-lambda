@@ -33,6 +33,11 @@ provider:
         - s3:DeleteObject
         - s3:ListBucket
       Resource: arn:aws:s3:::forgotpw-userdata-*
+    -
+      Effect: Allow
+      Action:
+        - s3:GetObject
+      Resource: arn:aws:s3:::forgotpw-usertokens-${env:AWS_ENV, 'dev'}/*
 
 plugins:
   - serverless-mocha-plugin
@@ -53,6 +58,8 @@ functions:
     name: 'fpw-nuke-account-sqsworker'
     handler: index.handler
     environment:
+      USERTOKEN_HASH_HMAC: ${ssm:/fpw/USERTOKEN_HASH_HMAC~true}
+      USERTOKENS_S3_BUCKET: forgotpw-usertokens-${env:AWS_ENV, 'dev'}
       NUKE_ACCOUNT_SQS_QUEUE_NAME: fpw-nuke-account-request
       USERDATA_S3_BUCKET: forgotpw-userdata-${env:AWS_ENV, 'dev'}
       TWILIO_ACCOUNT_SID: ${ssm:/fpw/TWILIO_ACCOUNT_SID~true}

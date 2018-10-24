@@ -29,10 +29,15 @@ sls \
 ## Invoke Locally
 
 ```shell
-# ensure we are matching the version of node used by lambda
+pip install iam-starter
 nvm use 8.10.0
+export AWS_ENV="dev" && export PROFILE="fpw$AWS_ENV"
+export AWS_REGION=us-east-1
 
-sls invoke local \
+iam-starter \
+    --role dev \
+    --profile $PROFILE \
+    --command sls invoke local \
     -f fpw-nuke-account-sqsworker \
     -p ./events/ValidNukeAccountSQSRequest.json \
     -l
